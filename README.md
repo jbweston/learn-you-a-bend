@@ -42,7 +42,7 @@ The first build may fetch Nix dependencies. You do not need to install Bend, Pan
 
 The **By chapter / One long page** links switch reading modes. Open `contents.html` for the book's contents and individual chapter pages, with Previous/Contents/Next navigation. `index.html` retains the complete tutorial for searching, scrolling, and printing. Both modes use the same editable examples and work on GitHub Pages without a server-side router.
 
-The layout takes its cues from Learn You a Haskell: a blue book header, large Georgia titles, readable text, and cream notes. Artwork and styles are original, with responsive layouts and keyboard-friendly navigation.
+The color palette takes its cues from [Bend's website](https://www.bend-lang.com/): warm paper backgrounds, dark gray-brown text, and muted violet accents. Text accents use a darker violet for readable contrast. Headings retain Roboto Condensed and body text uses sans-serif; only code uses monospace. The book layout remains responsive with keyboard-friendly navigation.
 
 ## Edit, run, learn
 
