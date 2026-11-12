@@ -31,6 +31,7 @@ body {
   margin: 0 auto;
   padding: 2rem 1.25rem;
   font: inherit;
+  font-size: 1.25rem;
   overflow-wrap: break-word;
 }
 
@@ -178,7 +179,7 @@ blockquote > :last-child { margin-bottom: 0; }
 
 code, pre, .bend-source-code, .bend-demo-output {
   font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
-  font-size: 0.85rem;
+  font-size: 1.25rem;
   line-height: 1.5;
   tab-size: 2;
 }
@@ -263,7 +264,7 @@ pre code { padding: 0; border: 0; background: transparent; font-size: inherit; }
 
 @media print {
   html { color-scheme: light; color: #000; background: #fff; font-size: 11pt; }
-  body, body.bend-book, body.book-contents { max-width: none; padding: 0; color: #000; background: #fff; }
+  body, body.bend-book, body.book-contents { max-width: none; padding: 0; color: #000; background: #fff; font-size: inherit; }
   .book-content, .book-contents .book-content { max-width: none; padding: 0; background: #fff; }
   .book-header, .book-footer, .chapter-navigation, .reading-mode,
   .bend-browser-note, .bend-editor-buttons, .bend-demo-note, .bend-demo-output { display: none; }
