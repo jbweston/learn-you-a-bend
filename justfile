@@ -18,6 +18,7 @@ serve port="8000": build
 test: build
     nix run .#node -- --test src/test-*.mjs
     nix run .#python -- src/test-serve.py
+    nix run .#python -- src/test-book.py
 
 # Check and run every Bend chapter with the current compiler.
 check:

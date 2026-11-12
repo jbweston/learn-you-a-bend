@@ -12,7 +12,8 @@
 *.dll
 
 # Generated tutorial
-/src/index.html
+/src/*.html
+!/src/browser-head.html
 /src/generated/
 /src/__pycache__/
 /src/compiler/__pycache__/

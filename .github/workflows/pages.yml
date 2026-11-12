@@ -26,7 +26,7 @@ jobs:
       - name: Prepare static site
         run: |
           mkdir -p _site
-          cp src/index.html src/browser.css _site/
+          cp src/index.html src/contents.html src/[0-9]*.html src/where-to-wander-next.html src/browser.css _site/
           cp src/browser.mjs src/browser-worker.mjs src/code-context.mjs _site/
           cp src/editor.mjs src/editor-compiler-worker.mjs src/editor-execution-worker.mjs _site/
           cp src/[0-9][0-9]-*.bend _site/

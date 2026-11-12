@@ -7,6 +7,7 @@ import subprocess
 import sys
 
 from compiler.build import build_compiler
+from book import write_pages
 
 
 TUTORIAL = Path(__file__).resolve().parent
@@ -67,12 +68,12 @@ def build() -> None:
         )
         runtime.replace(GENERATED / "examples.mjs")
         workspace.replace(GENERATED / "workspace.html")
-        page.replace(TUTORIAL / "index.html")
+        write_pages(page.read_text(encoding="utf-8"), TUTORIAL)
     finally:
         runtime.unlink(missing_ok=True)
         page.unlink(missing_ok=True)
         workspace.unlink(missing_ok=True)
-    print("Built src/index.html, the browser compiler, and compiled chapter demos")
+    print("Built the full tutorial, contents, chapter pages, browser compiler, and chapter demos")
 
 
 if __name__ == "__main__":

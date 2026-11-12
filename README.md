@@ -38,6 +38,12 @@ The command builds the tutorial, starts a static-file server at **http://127.0.0
 
 The first build may fetch Nix dependencies. You do not need to install Bend, Pandoc, or the bundler globally. Open the tutorial over HTTP rather than opening `index.html` directly: browser modules and workers require it.
 
+## Choose how to read
+
+The **By chapter / One long page** links switch reading modes. Open `contents.html` for the book's contents and individual chapter pages, with Previous/Contents/Next navigation. `index.html` retains the complete tutorial for searching, scrolling, and printing. Both modes use the same editable examples and work on GitHub Pages without a server-side router.
+
+The layout takes its cues from Learn You a Haskell: a blue book header, large Georgia titles, readable text, and cream notes. Artwork and styles are original, with responsive layouts and keyboard-friendly navigation.
+
 ## Edit, run, learn
 
 The tutorial's **Bend code boxes are editable directly**. Each has:
@@ -119,6 +125,6 @@ Restart fish, then run `direnv allow` from the repository root. After changing t
 - `justfile` — build, serving, and validation tasks.
 - `flake.nix` and `flake.lock` — pinned tools and Nix apps.
 
-`build` generates `src/index.html` and `src/generated/`; these artifacts are ignored by Git. The compiler is generated from the pinned upstream sources rather than vendored into this repository. Hash and exact-match guards deliberately fail when an unreviewed compiler pin changes; see `src/compiler/README.md` before upgrading Bend.
+`build` generates `src/index.html`, `src/contents.html`, individual chapter HTML pages, and `src/generated/`; these artifacts are ignored by Git. `src/book.py` adds the shared layout and splits Pandoc's chapter sections without duplicating the Markdown lessons. The compiler is generated from the pinned upstream sources rather than vendored into this repository. Hash and exact-match guards deliberately fail when an unreviewed compiler pin changes; see `src/compiler/README.md` before upgrading Bend.
 
 Once built, the tutorial can be hosted as static files. The host must serve JavaScript module MIME types and permit module workers and Blob module imports in its Content Security Policy. No CDN or remote execution service is needed. Keep `generated/compiler.LICENSE` and `generated/compiler.NOTICE` with the deployed bundle: the upstream compiler and embedded Base are Apache-2.0.
