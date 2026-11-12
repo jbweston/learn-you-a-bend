@@ -4,6 +4,22 @@ An interactive, example-first tutorial for [Bend 2](https://bend-lang.com), insp
 
 No Haskell experience is required. Start with the [tutorial](src/README.md), or open the browser version to edit and run the code as you read.
 
+## Read online
+
+Visit **[Learn You a Bend](https://jbweston.github.io/learn-you-a-bend/)** to read the tutorial and run its editable examples without installing anything.
+
+### Publish with GitHub Pages
+
+The workflow in `.github/workflows/pages.yml` builds and tests the tutorial with the pinned Nix toolchain, then deploys its static files on every push to `main`. You can also run it manually from the repository's **Actions** tab.
+
+One-time repository setup:
+
+1. Open **Settings → Pages** on GitHub.
+2. Under **Build and deployment**, choose **GitHub Actions** as the source.
+3. Push the workflow to `main` (or run **Deploy GitHub Pages** manually).
+
+The site will be available at `https://jbweston.github.io/learn-you-a-bend/` after the workflow succeeds. Forks use `https://<owner>.github.io/<repository>/`; asset and worker paths are relative, so no base-path configuration is needed. The deployment includes the chapter downloads and compiler license notices, but not the development scripts. No backend or API keys are required.
+
 ## Open the tutorial
 
 Requires Nix with flakes enabled. From the repository root:
