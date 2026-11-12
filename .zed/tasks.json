@@ -1,0 +1,7 @@
+[
+  {
+    "label": "Bend: run current file",
+    "command": "bend",
+    "args": ["{buffer_path}"]
+  }
+]

@@ -1,0 +1,22 @@
+# Nix
+/result
+/result-*
+.direnv/
+
+# Bend compiler output
+/bend.out
+/a.out
+*.o
+*.so
+*.dylib
+*.dll
+
+# Generated tutorial
+/src/index.html
+/src/generated/
+/src/__pycache__/
+/src/compiler/__pycache__/
+
+# Editor and OS files
+.DS_Store
+*~
