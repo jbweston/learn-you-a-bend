@@ -116,6 +116,8 @@ class Element {
     this.listeners = {};
     this.className = '';
   }
+  get textContent() { return (this.text ?? '') + (this.children ?? []).map(child => child.textContent).join(''); }
+  set textContent(value) { this.text = value; this.children = []; }
   append(...nodes) { for (const node of nodes) { node.parent = this; this.children.push(node); } }
   before(node) {
     node.parent = this.parent;
@@ -225,8 +227,8 @@ test('all 18 existing HTML Bend fences mount in place and Run real contextual pr
   mountTutorial();
   const boxes = root.querySelectorAll('[data-codebox]');
   assert.equal(boxes.length, 18);
-  assert.equal(root.querySelectorAll('pre.bend').length, 0);
-  assert.deepEqual(root.querySelectorAll('pre'), staticBlocks);
+  assert.deepEqual(root.querySelectorAll('pre.bend'), originalBend);
+  assert.deepEqual(root.querySelectorAll('pre').filter(pre => !pre.matches('pre.bend')), staticBlocks);
   assert.equal(root.querySelectorAll('details, summary').length, 0);
   assert.equal(gets.size, 0, 'code is visible before fetching any context');
   assert.deepEqual(root.children.filter((child) => child.dataset.tutorialBrowser === undefined),
@@ -240,6 +242,8 @@ test('all 18 existing HTML Bend fences mount in place and Run real contextual pr
     const textarea = box.querySelector('textarea');
     assert.equal(textarea.value, box.starter);
     assert.equal(box.originalSnippet, originalBend[index].textContent);
+    assert.equal(box.querySelector('pre'), originalBend[index], 'original semantic pre stays in the article');
+    assert.equal(box.querySelector('pre').querySelector('code').textContent, box.originalSnippet);
     if (!box.originalSnippet.includes('def main() -> IO(Unit):')) assert.equal(textarea.value, box.originalSnippet);
     else assert.match(box.querySelector('.bend-demo-note').textContent, /Pure IO main variant/);
     assert.equal(textarea.spellcheck, false);
@@ -270,12 +274,108 @@ test('all 18 existing HTML Bend fences mount in place and Run real contextual pr
   assert.equal(gets.get('02-functions.bend'), 1);
 });
 
+test('custom heading IDs use data-chapter-source for real contextual compilation', async (t) => {
+  const root = fakeDOM(t);
+  const heading = new Element('h2', 'Functions with a custom publication ID');
+  heading.id = 'custom-functions-heading';
+  heading.dataset.chapterSource = '02-functions.bend';
+  assert.ok(!chapters.some(chapter => chapter.id === heading.id));
+  const pre = new Element('pre', 'def main() -> U32:\n  square(9)\n');
+  pre.className = 'bend';
+  root.append(heading, pre);
+  const original = await readFile(new URL('./02-functions.bend', import.meta.url), 'utf8');
+  stubFetch(t, async (url) => {
+    assert.ok(url.pathname.endsWith('/02-functions.bend'));
+    return { ok: true, text: async () => original };
+  });
+  const workers = editorWorkers(t, (worker, payload) => {
+    queueMicrotask(async () => {
+      try {
+        if (worker.url.endsWith('editor-compiler-worker.mjs')) {
+          worker.onmessage({ data: { ok: true, ...compile(payload.source) } });
+        } else {
+          const module = await import(`data:text/javascript;base64,${Buffer.from(payload.javascript).toString('base64')}`);
+          worker.onmessage({ data: { ok: true, result: formatValue(module.default.main()) } });
+        }
+      } catch (error) { worker.onmessage({ data: { ok: false, error: error.message } }); }
+    });
+  });
+  mountTutorial();
+  const box = root.querySelector('[data-codebox]');
+  assert.equal(box.dataset.source, heading.dataset.chapterSource);
+  box.querySelector('.bend-demo-run').fire('click');
+  const output = await settled(box);
+  assert.equal(output.dataset.state, 'success', output.textContent);
+  assert.match(output.textContent, /Type: U32\nResult: 81$/);
+  assert.equal(box.originalSource, original);
+  assert.match(workers[0].payload.source, /def square/);
+  assert.equal(workers.length, 2);
+  assert.ok(workers.every(worker => worker.terminated));
+});
+
 function singleBox(t, source, options = {}) {
   const root = fakeDOM(t);
   const pre = new Element('pre', source);
   root.append(pre);
   return mountCodeBox(pre, { index: 0, heading: 'Test heading', ...options });
 }
+
+test('semantic reader listing preserves pre/code and safely tracks ordinary edits and Reset', (t) => {
+  const root = fakeDOM(t, new Element('article'));
+  const source = 'def main() -> U32:\n  42\n';
+  const pre = new Element('pre');
+  const code = new Element('code', source);
+  pre.className = 'bend';
+  code.className = 'sourceCode';
+  pre.append(code);
+  root.append(pre);
+  const box = mountCodeBox(pre, { index: 0 });
+  assert.equal(root.children[0], box);
+  assert.equal(box.querySelector('pre'), pre);
+  assert.equal(pre.querySelector('code'), code, 'keep the original semantic code element');
+  assert.ok(pre.matches('.bend-reader-source'));
+  for (const element of [box, pre, code]) {
+    for (const name of ['hidden', 'aria-hidden', 'style']) assert.equal(element.attributes[name], undefined);
+  }
+  const textarea = box.querySelector('textarea');
+  const edited = 'import Base\n// <script>alert("not HTML")</script>\ndef main() -> U32:\n  61\n';
+  textarea.value = edited;
+  textarea.fire('input');
+  assert.equal(code.textContent, edited);
+  assert.equal(code.children.length, 0, 'edits are text, never parsed HTML');
+  assert.equal(box.originalSnippet, source);
+  box.querySelector('.bend-editor-reset').fire('click');
+  assert.equal(code.textContent, source);
+});
+
+test('reader and print listing retain original IO intent instead of pure-variant edits', (t) => {
+  const original = 'def main() -> IO(Unit):\n  IO.print(greeting("functional adventurer"))\n';
+  const box = singleBox(t, original, { filename: '07-effects.bend' });
+  const textarea = box.querySelector('textarea');
+  const code = box.querySelector('pre').querySelector('code');
+  assert.notEqual(textarea.value, original);
+  assert.equal(code.textContent, original);
+  textarea.value = 'def main() -> U32:\n  99\n';
+  textarea.fire('input');
+  assert.equal(code.textContent, original);
+  box.querySelector('.bend-editor-reset').fire('click');
+  assert.equal(code.textContent, original);
+  assert.equal(textarea.value, box.starter);
+  assert.match(box.querySelector('.bend-demo-note').textContent, /Reader mode and print preserve the original terminal-IO listing/);
+});
+
+test('reader listing uses visual clipping, not Readability-invisible attributes or styles', async () => {
+  const css = await readFile(new URL('./browser.css', import.meta.url), 'utf8');
+  const rules = [...css.matchAll(/\.bend-codebox \.bend-reader-source\s*\{([^}]+)\}/g)].map(match => match[1]);
+  assert.equal(rules.length, 2, 'screen clipping and print restoration');
+  assert.match(rules[0], /position:\s*absolute/);
+  assert.match(rules[0], /clip-path:\s*inset\(50%\)/);
+  assert.match(rules[0], /width:\s*1px/);
+  assert.match(rules[0], /height:\s*1px/);
+  for (const rule of rules) assert.doesNotMatch(rule, /display:\s*none|visibility:\s*hidden|content-visibility:\s*hidden/);
+  assert.match(rules[1], /position:\s*static/);
+  assert.match(rules[1], /clip-path:\s*none/);
+});
 
 test('standalone paste bypasses unavailable context; Reset aborts workers and restores only snippet', async (t) => {
   const source = 'def main() -> U32:\n  42\n';

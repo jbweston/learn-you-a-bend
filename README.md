@@ -10,7 +10,7 @@ Visit **[Learn You a Bend](https://jbweston.github.io/learn-you-a-bend/)** to re
 
 ### Publish with GitHub Pages
 
-The workflow in `.github/workflows/pages.yml` builds and tests the tutorial with the pinned Nix toolchain, then deploys its static files on every push to `main`. You can also run it manually from the repository's **Actions** tab.
+The workflow in `.github/workflows/pages.yml` exports the PDF and EPUB, builds and tests the interactive tutorial with the pinned Nix toolchain, then deploys its static files on every push to `main`. You can also run it manually from the repository's **Actions** tab.
 
 One-time repository setup:
 
@@ -56,6 +56,12 @@ There are no separate editor panels or compilation buttons. Chapters can contain
 
 Partial snippets use the original chapter's remaining definitions as context. Boxes are independent: changes in one do not alter another. Paste a complete program beginning with `import Base` to run without chapter context.
 
+### Reader mode and printing
+
+Every editable code box retains a semantic `<pre><code>` listing in the document. Firefox Reader View can show that listing after removing the editor controls; ordinary browsing still shows only the editor. Regular listings track edits and Reset. For the labelled pure IO variants, reader mode and print retain the original terminal-IO example rather than silently changing the lesson.
+
+Printing hides the interactive controls and shows the code listings. Reader View is read-only; return to the normal page to run examples.
+
 ### Browser support
 
 The browser uses an adapted version of the pinned **Bend 2 TypeScript compiler**, with `Base` embedded in the bundle. Compilation runs in a fresh Web Worker; generated JavaScript executes in a separate worker. Neither runs on the page's main JavaScript thread, and edited source is never uploaded. The local server serves static files only—there is no compilation or execution API.
@@ -68,7 +74,7 @@ Compilation and execution each have a five-second deadline. Source, generated Ja
 
 ## Tutorial tasks
 
-Recipes use `nix run` with the project's pinned tools, so they do not depend on a refreshed interactive shell:
+Recipes use the project's pinned Nix tools, so they do not depend on a refreshed interactive shell:
 
 ```sh
 just         # list tasks
@@ -77,6 +83,8 @@ just open    # build, serve, and open the tutorial
 just serve   # build and serve without opening a browser
 just test    # test the compiler, code boxes, workers, and static server
 just check   # check and run the numbered Bend chapter programs
+just pdf     # export a printable book with LuaLaTeX
+just epub    # export an EPUB 3 ebook
 ```
 
 Without `just` on PATH, prefix a task with `nix run .#just --`.
@@ -88,6 +96,26 @@ nix run .#node -- src/browser-smoke.mjs
 ```
 
 This tests code edits, diagnostics, Reset recovery, worker isolation, page responsiveness during heavy work, and the absence of source uploads.
+
+## Authoring and book exports
+
+Edit the lessons in `src/chapters/`, not generated HTML. Each chapter has YAML front matter:
+
+```yaml
+---
+chapter: 1
+title: "1. Values, not a shopping list of commands"
+slug: 1-values-not-a-shopping-list-of-commands
+source: 01-values.bend
+part: Functional foundations
+---
+```
+
+`chapter` determines order; `slug` is the stable page URL and chapter anchor; `source` names the original Bend program used for partial-snippet context (omit it for standalone examples). The chapter title comes from metadata; body subsections use `###`. Keep runnable examples in fenced `bend` blocks. `src/chapters/introduction.md` is the shared introduction, and `src/README.md` is a source-reading index.
+
+Pandoc parses metadata and Markdown into its document AST. The website renders each chapter directly and applies the shared templates in `src/templates/`; it no longer splits HTML. Chapter order, subsection contents, and navigation are generated from the sources.
+
+`just pdf` and `just epub` export the same sources to `src/generated/learn-you-a-bend.pdf` and `.epub`. Neither needs the browser compiler build. PDF uses pinned LuaLaTeX and DejaVu fonts; the first export may fetch additional Nix dependencies. Ebooks have static code listings and links to the hosted chapter downloads, not runnable widgets. Run the exports before `just build` to include download links on the contents page. GitHub Pages does this automatically.
 
 ## Development environment
 
@@ -117,7 +145,10 @@ Restart fish, then run `direnv allow` from the repository root. After changing t
 
 ## Structure and builds
 
-- `src/README.md` — the lessons, exercises, and Haskell comparisons.
+- `src/chapters/*.md` — the lessons, exercises, metadata, and Haskell comparisons.
+- `src/README.md` — source-reading index.
+- `src/templates/` and `src/book.py` — shared page layout and chapter publishing.
+- `src/export.py` — PDF/EPUB publishing from the same sources.
 - `src/01-*.bend` through `src/10-*.bend` — runnable chapter programs.
 - `src/browser.mjs`, `src/editor.mjs`, and worker modules — inline code boxes and browser execution.
 - `src/code-context.mjs` — assembles partial snippets with chapter definitions.
@@ -125,6 +156,6 @@ Restart fish, then run `direnv allow` from the repository root. After changing t
 - `justfile` — build, serving, and validation tasks.
 - `flake.nix` and `flake.lock` — pinned tools and Nix apps.
 
-`build` generates `src/index.html`, `src/contents.html`, individual chapter HTML pages, and `src/generated/`; these artifacts are ignored by Git. `src/book.py` adds the shared layout and splits Pandoc's chapter sections without duplicating the Markdown lessons. The compiler is generated from the pinned upstream sources rather than vendored into this repository. Hash and exact-match guards deliberately fail when an unreviewed compiler pin changes; see `src/compiler/README.md` before upgrading Bend.
+`build` generates `src/index.html`, `src/contents.html`, individual chapter HTML pages, and `src/generated/`; these artifacts are ignored by Git. `src/book.py` renders the ordered chapter sources through Pandoc and shared templates; `src/export.py` assembles them into PDF/EPUB without duplicating the lessons. The compiler is generated from the pinned upstream sources rather than vendored into this repository. Hash and exact-match guards deliberately fail when an unreviewed compiler pin changes; see `src/compiler/README.md` before upgrading Bend.
 
 Once built, the tutorial can be hosted as static files. The host must serve JavaScript module MIME types and permit module workers and Blob module imports in its Content Security Policy. No CDN or remote execution service is needed. Keep `generated/compiler.LICENSE` and `generated/compiler.NOTICE` with the deployed bundle: the upstream compiler and embedded Base are Apache-2.0.

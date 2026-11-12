@@ -160,6 +160,14 @@ const snapshotExpression = `Array.from(document.querySelectorAll('[data-codebox]
   text: box.querySelector('textarea')?.value,
   starter: box.starter,
   originalSnippet: box.originalSnippet,
+  listing: box.querySelector('pre.bend-reader-source code')?.textContent,
+  listingStyle: (() => {
+    const pre = box.querySelector('pre.bend-reader-source');
+    if (!pre) return null;
+    const style = getComputedStyle(pre);
+    return { display: style.display, visibility: style.visibility, clipPath: style.clipPath,
+      width: style.width, height: style.height, hidden: pre.hidden, ariaHidden: pre.getAttribute('aria-hidden') };
+  })(),
   originalSource: box.originalSource,
   disabled: box.querySelector('.bend-demo-run')?.disabled,
   editable: !box.querySelector('textarea')?.disabled && !box.querySelector('textarea')?.readOnly,
@@ -189,6 +197,7 @@ async function edit(index, source, state, expected, phase = 'runtime', timeout =
   if (expected instanceof RegExp) assert.match(result.output, expected);
   else assert.equal(result.output.split('\n').find(line => line.startsWith('Result: ')), `Result: ${expected}`, `box ${index}: ${result.output}`);
   assert.equal(result.phase, phase);
+  assert.equal(result.listing, result.originalSnippet.includes('def main() -> IO(Unit):') ? result.originalSnippet : source);
   console.log(`PASS box ${index} ${state}: ${result.output.slice(0, 240)}`);
   return result;
 }
@@ -205,6 +214,7 @@ async function resetBox(box, expected) {
   assert.equal(reset.phase, 'ready');
   assert.equal(reset.disabled, false);
   assert.equal(reset.text, box.starter);
+  assert.equal(reset.listing, box.originalSnippet);
   await edit(box.index, reset.text, 'success', expected);
 }
 
@@ -262,6 +272,24 @@ async function heavyTimeout(box, source, phase, starterResult, other) {
   } finally {
     if (interval !== undefined && !signal.aborted) await evaluate(`clearInterval(${interval})`);
   }
+}
+
+async function checkReadability(readability, listings, label) {
+  if (!readability) {
+    console.log(`SKIP Mozilla Readability (${label}): set READABILITY_JS to a temporary Readability.js installation`);
+    return;
+  }
+  const extracted = await evaluate(`(() => {
+    ${readability}
+    const article = new Readability(document.cloneNode(true)).parse();
+    if (!article) throw new Error('Readability found no article');
+    const doc = new DOMParser().parseFromString(article.content, 'text/html');
+    return { listings: [...doc.querySelectorAll('pre code')].map(code => code.textContent),
+      textareas: doc.querySelectorAll('textarea').length };
+  })()`);
+  for (const listing of listings) assert.ok(extracted.listings.includes(listing), `${label}: Readability preserves each Bend listing`);
+  assert.equal(extracted.textareas, 0);
+  console.log(`PASS Mozilla Readability (${label}): all ${listings.length} semantic Bend listings survive extraction; textareas removed`);
 }
 
 async function main() {
@@ -347,7 +375,7 @@ async function main() {
     staticBefore: window.staticFences,
     staticAfter: [...document.querySelectorAll('pre:not(.bend)')].map(pre => ({ className: pre.className, text: pre.textContent }))
   })`);
-  assert.equal(layout.bendPres, 0);
+  assert.equal(layout.bendPres, 18);
   assert.equal(layout.demos, 0);
   assert.equal(layout.detailsEditors, 0);
   assert.equal(layout.runs, 18);
@@ -368,12 +396,30 @@ async function main() {
     assert.equal(box.spellcheck, false);
     assert.match(box.label, /Bend code box/);
     assert.equal(box.text, box.starter);
+    assert.equal(box.listing, box.originalSnippet);
+    assert.deepEqual(box.listingStyle, { display: 'block', visibility: 'visible', clipPath: 'inset(50%)',
+      width: '1px', height: '1px', hidden: false, ariaHidden: null });
     if (box.originalSnippet.includes('def main() -> IO(Unit):')) {
       assert.doesNotMatch(box.starter, /IO\.print|def main\(\) -> IO/);
       assert.match(await evaluate(`document.querySelector('[data-codebox="${box.index}"] .bend-demo-note').textContent`), /Pure IO main variant/);
     } else assert.equal(box.starter, box.originalSnippet);
   }
-  console.log('PASS layout: 18 visible in-place editable Bend fences, 18 Run/Reset pairs; no fixed demos, details editors, or Compile & Run; Haskell/shell unchanged');
+  const unstyled = await evaluate(`(() => {
+    const frame = document.createElement('iframe');
+    document.body.append(frame);
+    const doc = frame.contentDocument;
+    for (const pre of document.querySelectorAll('pre.bend-reader-source')) doc.body.append(pre.cloneNode(true));
+    const rows = [...doc.querySelectorAll('pre')].map(pre => ({ text: pre.querySelector('code').textContent,
+      visible: pre.getBoundingClientRect().height > 1 && frame.contentWindow.getComputedStyle(pre).clipPath === 'none' }));
+    frame.remove();
+    return rows;
+  })()`);
+  assert.deepEqual(unstyled.map(row => row.text), layout.originals);
+  assert.ok(unstyled.every(row => row.visible), 'listings become visible without page styles');
+  // Optional temporary tooling; no Readability dependency is needed by the tutorial.
+  const readability = process.env.READABILITY_JS ? await readFile(process.env.READABILITY_JS, 'utf8') : null;
+  await checkReadability(readability, layout.originals, 'full tutorial');
+  console.log('PASS layout: 18 visible editors with clipped semantic listings that appear without CSS; 18 Run/Reset pairs; Haskell/shell unchanged');
   const defaults = ['42', '42', '49', '50', '25', '25', '10', '44', '44', '44', '[7, 7, 7]',
     'Hello, functional adventurer!', 'Some(42)', 'Some(42)', '1024', '1024', 'null (erased at runtime)', '([0, 0, 0, 0, 0, 42, 0, 0], 42)'];
   for (const box of boxes) {
@@ -467,6 +513,52 @@ async function main() {
   assert.equal(await evaluate('window.pageBlobCount'), 0, 'Generated modules never become page Blobs');
   assert.ok(parsedBlobs.length >= 18, 'Observed generated ES modules in execution workers');
   assert.ok(parsedBlobs.every(item => workerSessions.has(item.session)), 'No generated Blob modules executed on the page');
+  assert.equal(await evaluate('document.querySelectorAll("article.book-tutorial [data-codebox]").length'), 18);
+  const contentsUrl = await evaluate('document.querySelector(".reading-mode a[href=\\"contents.html\\"]").href');
+  assert.equal(contentsUrl, new URL('contents.html', url).href);
+  const contentsNavigation = await cdp.send('Page.navigate', { url: contentsUrl }, sessionId);
+  assert.ok(!contentsNavigation.errorText, contentsNavigation.errorText);
+  const chapterSlug = '2-functions-and-the-suspicious-little-plus';
+  const chapterUrl = await poll('contents link to individual functions chapter', () => evaluate(`
+    location.pathname.endsWith('/contents.html') && document.readyState === 'complete'
+      ? document.querySelector('.chapter-list a[href="${chapterSlug}.html"]')?.href : null
+  `));
+  assert.equal(chapterUrl, new URL(`${chapterSlug}.html`, url).href);
+  const chapterNavigation = await cdp.send('Page.navigate', { url: chapterUrl }, sessionId);
+  assert.ok(!chapterNavigation.errorText, chapterNavigation.errorText);
+  const chapterBoxes = await poll('two individual functions chapter editors to mount', async () => {
+    if (!await evaluate(`location.pathname.endsWith('/${chapterSlug}.html')`)) return null;
+    const current = await evaluate(snapshotExpression);
+    return current.length === 2 && current.every(box => box.state === 'ready') ? current : null;
+  });
+  assert.deepEqual(chapterBoxes.map(box => box.index), [0, 1]);
+  assert.ok(chapterBoxes.every(box => box.source === '02-functions.bend' && box.visible && box.editable));
+  const chapterLayout = await evaluate(`({
+    articleSource: document.querySelector('article.book-chapter')?.dataset.chapterSource,
+    headingSource: document.querySelector('article.book-chapter h2')?.dataset.chapterSource,
+    editors: document.querySelectorAll('article.book-chapter [data-codebox]').length,
+    navigation: [...document.querySelectorAll('.chapter-navigation')].map(nav => [...nav.querySelectorAll('a')].map(a => a.getAttribute('href'))),
+    longPage: document.querySelector('.reading-mode a[href^="index.html"]')?.getAttribute('href'),
+    originals: window.originalFences
+  })`);
+  assert.equal(chapterLayout.articleSource, '02-functions.bend');
+  assert.equal(chapterLayout.headingSource, '02-functions.bend');
+  assert.equal(chapterLayout.editors, 2);
+  assert.deepEqual(chapterLayout.navigation, Array.from({ length: 2 }, () => [
+    '1-values-not-a-shopping-list-of-commands.html', 'contents.html', '3-shapes-in-tiny-labelled-boxes.html',
+  ]));
+  assert.equal(chapterLayout.longPage, `index.html#${chapterSlug}`);
+  assert.deepEqual(chapterBoxes.map(box => box.listing), chapterLayout.originals);
+  await edit(0, chapterBoxes[0].starter, 'success', '49');
+  const contextual = await edit(1, replace(chapterBoxes[1].starter, 'square(7)', 'square(9)'), 'success', '82');
+  assert.equal(contextual.originalSource, await readFile(path.join(root, 'src/02-functions.bend'), 'utf8'));
+  await checkReadability(readability, (await evaluate(snapshotExpression)).map(box => box.listing), 'individual functions chapter after edit');
+  const chapterAudit = await evaluate('window.editorWorkerAudit');
+  assert.equal(chapterAudit.filter(row => row.url.endsWith('/editor-compiler-worker.mjs')).length, 2);
+  assert.equal(chapterAudit.filter(row => row.url.endsWith('/editor-execution-worker.mjs')).length, 2);
+  assert.ok(chapterAudit.every(row => row.terminated === 1));
+  assert.equal(await evaluate('window.pageBlobCount'), 0);
+  console.log('PASS individual chapter: contents navigation, previous/next and long-page links, metadata context, real results 49/82, and synced reader listing');
   assert.ok(networkRequests.length > 0);
   for (const request of networkRequests) {
     assert.equal(request.method, 'GET', 'No POST/source uploads');

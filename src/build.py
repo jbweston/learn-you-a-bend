@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 from compiler.build import build_compiler
-from book import write_pages
+from book import load_book, page, write_pages
 
 
 TUTORIAL = Path(__file__).resolve().parent
@@ -34,12 +34,7 @@ def build() -> None:
     for source in sources:
         shutil.copyfile(source, chapters / source.name.split("-", 1)[1])
 
-    page_source = GENERATED / "tutorial.md"
-    page_source.write_text(
-        (TUTORIAL / "README.md").read_text(encoding="utf-8").replace(
-            "](../README.md)", "](generated/workspace.html)"
-        ), encoding="utf-8",
-    )
+    book = load_book(TUTORIAL)
     workspace_source = GENERATED / "workspace.md"
     workspace_source.write_text(
         (ROOT / "README.md").read_text(encoding="utf-8").replace(
@@ -47,31 +42,25 @@ def build() -> None:
         ), encoding="utf-8",
     )
     runtime = GENERATED / "examples-next.mjs"
-    page = GENERATED / "index-next.html"
+
     workspace = GENERATED / "workspace-next.html"
     try:
         run("bend", "src/browser-examples.bend", "-o", str(runtime))
         run(
-            "pandoc", "--from=gfm", "--to=html5", "--standalone",
-            "--metadata", "title=Learn You a Bend — Project setup", "--css", "../browser.css",
+            "pandoc", "--from=gfm", "--to=html5",
             str(workspace_source), "--output", str(workspace),
         )
-        run(
-            "pandoc",
-            "--from=gfm",
-            "--to=html5",
-            "--standalone",
-            "--metadata", "title=Learn You a Bend",
-            "--include-in-header", "src/browser-head.html",
-            str(page_source),
-            "--output", str(page),
+        workspace.write_text(
+            page('<article>' + workspace.read_text(encoding="utf-8") + '</article>',
+                 title="Project setup — Learn You a Bend", prefix=".."),
+            encoding="utf-8",
         )
         runtime.replace(GENERATED / "examples.mjs")
         workspace.replace(GENERATED / "workspace.html")
-        write_pages(page.read_text(encoding="utf-8"), TUTORIAL)
+        write_pages(book, TUTORIAL)
     finally:
         runtime.unlink(missing_ok=True)
-        page.unlink(missing_ok=True)
+
         workspace.unlink(missing_ok=True)
     print("Built the full tutorial, contents, chapter pages, browser compiler, and chapter demos")
 
@@ -79,6 +68,7 @@ def build() -> None:
 if __name__ == "__main__":
     try:
         build()
-    except (OSError, RuntimeError, subprocess.CalledProcessError) as error:
-        print(f"Tutorial build failed: {error}", file=sys.stderr)
+    except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
+        detail = getattr(error, "stderr", None)
+        print(f"Tutorial build failed: {error}" + (f"\n{detail.strip()}" if detail else ""), file=sys.stderr)
         sys.exit(1)

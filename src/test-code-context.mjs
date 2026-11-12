@@ -6,7 +6,14 @@ import { pureStarter } from './editor.mjs';
 import { compile } from './generated/compiler.mjs';
 
 const directory = new URL('./', import.meta.url);
-const markdown = await readFile(new URL('README.md', directory), 'utf8');
+const chapterDirectory = new URL('chapters/', directory);
+const chapterFiles = (await readdir(chapterDirectory)).filter((file) => /^\d\d-.*\.md$/.test(file)).sort();
+const markdown = (await Promise.all(chapterFiles.map(async (file) => {
+  const source = await readFile(new URL(file, chapterDirectory), 'utf8');
+  const number = /^chapter: (\d+)$/m.exec(source)?.[1];
+  assert.ok(number, `${file} has chapter metadata`);
+  return `## ${number}.\n${source.replace(/^---\n[\s\S]*?\n---\n/, '')}`;
+}))).join('\n');
 const files = await readdir(directory);
 const chapters = new Map();
 for (let number = 1; number <= 10; number++) {
@@ -60,7 +67,7 @@ const fenceFor = (number, text) => {
 const count = (source, kind, name) => [...source.matchAll(new RegExp(`^${kind} ${name}\\b`, 'gm'))].length;
 
 for (const [index, fence] of fences.entries()) {
-  test(`README fence ${index + 1}: chapter ${fence.number} compiles and executes`, async () => {
+  test(`Chapter fence ${index + 1}: chapter ${fence.number} compiles and executes`, async () => {
     const source = assemble(fence);
     assert.deepEqual((await evaluate(source)).value, expected[index]);
     if (fence.number === 7 || fence.number === 8) assert.doesNotMatch(source, /^def main\(\) -> IO/m);

@@ -21,16 +21,21 @@ jobs:
         uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
+      - name: Build downloadable books
+        run: |
+          nix run .#just -- pdf
+          nix run .#just -- epub
       - name: Build and test the tutorial
         run: nix run .#just -- test
       - name: Prepare static site
         run: |
           mkdir -p _site
-          cp src/index.html src/contents.html src/[0-9]*.html src/where-to-wander-next.html src/browser.css _site/
+          cp src/*.html src/browser.css _site/
           cp src/browser.mjs src/browser-worker.mjs src/code-context.mjs _site/
           cp src/editor.mjs src/editor-compiler-worker.mjs src/editor-execution-worker.mjs _site/
           cp src/[0-9][0-9]-*.bend _site/
           cp -R src/generated _site/generated
+          cp -R src/fonts _site/fonts
           touch _site/.nojekyll
       - name: Upload site
         uses: actions/upload-pages-artifact@v3

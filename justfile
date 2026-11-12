@@ -6,6 +6,14 @@ default:
 build:
     nix run .#build
 
+# Export a downloadable PDF without building the browser compiler.
+pdf:
+    nix run .#pdf
+
+# Export a downloadable EPUB without building the browser compiler.
+epub:
+    nix run .#epub
+
 # Rebuild, serve on loopback, and open Learn You a Bend. Ctrl+C stops it.
 open port="8000": build
     nix run .#serve -- --port {{quote(port)}} --open
@@ -18,7 +26,8 @@ serve port="8000": build
 test: build
     nix run .#node -- --test src/test-*.mjs
     nix run .#python -- src/test-serve.py
-    nix run .#python -- src/test-book.py
+    nix develop --command python3 src/test-book.py
+    nix develop --command python3 src/test-export.py
 
 # Check and run every Bend chapter with the current compiler.
 check:

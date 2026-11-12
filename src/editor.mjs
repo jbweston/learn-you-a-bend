@@ -90,6 +90,10 @@ export function mountCodeBox(pre, { filename = '', heading = 'Bend', index, loca
   const starter = adapted ? pureStarter(filename, originalSnippet) : originalSnippet;
   box.originalSnippet = originalSnippet;
   box.starter = starter;
+  // Keep semantic code in the article: Readability removes textareas and page CSS.
+  pre.className = `${pre.className} bend-reader-source`.trim();
+  const listing = pre.querySelector('code') ?? node('code', '', originalSnippet);
+  if (!pre.querySelector('code')) { pre.textContent = ''; pre.append(listing); }
   const textarea = node('textarea', 'bend-source-code');
   textarea.id = `${id}-source`;
   textarea.value = starter;
@@ -99,7 +103,11 @@ export function mountCodeBox(pre, { filename = '', heading = 'Bend', index, loca
   textarea.setAttribute('aria-label', `Bend code box ${index + 1}: ${heading}${adapted ? ' (pure IO main variant)' : ''}`);
   const autosize = () => { textarea.rows = Math.max(3, Math.min(24, textarea.value.replace(/\n$/, '').split('\n').length)); };
   autosize();
-  textarea.addEventListener('input', autosize);
+  const syncListing = () => {
+    // IO examples document terminal effects, not the browser's pure adaptation.
+    if (!adapted) listing.textContent = textarea.value;
+  };
+  textarea.addEventListener('input', () => { autosize(); syncListing(); });
   const buttons = node('div', 'bend-editor-buttons');
   const runButton = node('button', 'bend-demo-run', 'Run');
   runButton.title = 'Runs with original chapter definitions; paste full program with import Base to run independently';
@@ -108,7 +116,7 @@ export function mountCodeBox(pre, { filename = '', heading = 'Bend', index, loca
   runButton.disabled = localFile;
   buttons.append(runButton, reset);
   const note = node('p', 'bend-demo-note', adapted
-    ? 'Pure IO main variant: returns a value instead of terminal IO. Reset restores this snippet.'
+    ? 'Pure IO main variant: returns a value instead of terminal IO. Reset restores this snippet. Reader mode and print preserve the original terminal-IO listing, not edits to this pure variant.'
     : filename ? 'Uses original chapter context unless you paste a full program with import Base.' : 'Standalone program; no chapter context.');
   note.id = `${id}-note`;
   textarea.setAttribute('aria-describedby', note.id);
@@ -123,8 +131,8 @@ export function mountCodeBox(pre, { filename = '', heading = 'Bend', index, loca
     output.textContent = localFile ? 'Run needs localhost HTTP. Use just open.' : 'Ready.';
   };
   ready();
-  box.append(textarea, buttons, note, output);
   pre.replaceWith(box);
+  box.append(pre, textarea, buttons, note, output);
   let generation = 0, active;
   const run = async () => {
     if (active || localFile) return;
@@ -184,6 +192,7 @@ export function mountCodeBox(pre, { filename = '', heading = 'Bend', index, loca
     active = undefined;
     textarea.value = starter;
     autosize();
+    syncListing();
     runButton.disabled = localFile;
     box.setAttribute('aria-busy', 'false');
     ready();

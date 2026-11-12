@@ -42,6 +42,16 @@ class ServerTests(unittest.TestCase):
             self.assertIn('href="browser.css"', page)
             self.assertEqual(response.headers["Cache-Control"], "no-store")
 
+    def test_heading_font_is_self_hosted_and_licensed(self):
+        with self.get("/browser.css") as response:
+            css = response.read().decode()
+            self.assertIn("url('fonts/roboto-condensed-bold.ttf')", css)
+            self.assertIn("font-display: swap", css)
+        with self.get("/fonts/roboto-condensed-bold.ttf") as response:
+            self.assertEqual(response.read()[:4], b"\x00\x01\x00\x00")
+        with self.get("/fonts/OFL.txt") as response:
+            self.assertIn("SIL OPEN FONT LICENSE", response.read().decode())
+
     def test_workspace_reference_stays_inside_served_tutorial(self):
         with self.get("/") as response:
             self.assertIn('href="generated/workspace.html"', response.read().decode())

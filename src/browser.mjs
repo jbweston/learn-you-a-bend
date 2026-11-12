@@ -170,7 +170,7 @@ export function mountTutorial() {
   let heading, index = 0;
   for (const block of blocks) {
     if (block.matches('h2')) { heading = block; continue; }
-    const filename = byHeading.get(heading?.id)?.source ?? '';
+    const filename = heading?.dataset.chapterSource ?? byHeading.get(heading?.id)?.source ?? '';
     mountCodeBox(block, {
       filename, heading: heading?.textContent ?? 'Bend', index: index++, localFile,
       getChapterSource: () => filename ? loadChapterSource(filename) : Promise.resolve(''),
