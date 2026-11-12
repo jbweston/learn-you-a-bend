@@ -1,5 +1,14 @@
+@font-face {
+  font-family: 'Roboto Condensed';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('fonts/roboto-condensed-bold.ttf') format('truetype');
+}
+
 html {
   color-scheme: light;
+  --bend-heading-font: 'Roboto Condensed', 'Arial Narrow', Arial, sans-serif;
   --bend-blue: #67a7cd;
   --bend-ink: #263641;
   --bend-paper: #fffdf8;
@@ -38,8 +47,8 @@ a:hover { text-decoration-thickness: 0.14em; }
 
 h1, h2, h3, h4 {
   color: var(--bend-ink);
-  font-family: Georgia, 'Times New Roman', serif;
-  font-weight: 400;
+  font-family: var(--bend-heading-font);
+  font-weight: 700;
   line-height: 1.15;
   text-align: start;
   overflow-wrap: break-word;
@@ -49,9 +58,7 @@ h1 { margin: 0 0 1.25rem; font-size: clamp(2.5rem, 6vw, 4rem); }
 h2 { margin: 2.5rem 0 1rem; font-size: clamp(2rem, 4.5vw, 3rem); }
 .book-chapter > h2:first-child {
   margin: 0 0 1.25rem;
-  font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(2.5rem, 6vw, 4rem);
-  font-weight: 400;
 }
 h3 { margin: 2rem 0 0.75rem; font-size: 1.65rem; }
 h4 { font-size: 1.25rem; }
@@ -73,7 +80,7 @@ hr { margin: 2rem 0; border: 0; border-top: 1px solid var(--bend-line); }
 }
 .book-header .book-brand {
   color: #173447;
-  font: 400 clamp(1.65rem, 4vw, 2.25rem)/1.15 Georgia, 'Times New Roman', serif;
+  font: 700 clamp(1.65rem, 4vw, 2.25rem)/1.15 var(--bend-heading-font);
   text-decoration: none;
 }
 .book-brand:hover { text-decoration: underline; }
@@ -144,7 +151,7 @@ body.book-contents { background: var(--bend-blue); }
 .chapter-list a {
   display: block;
   padding: 0.9rem 0.5rem;
-  font: 400 1.35rem/1.4 Georgia, 'Times New Roman', serif;
+  font: 700 1.35rem/1.4 var(--bend-heading-font);
   text-decoration: none;
 }
 .chapter-list a:hover { background: var(--bend-panel); text-decoration: underline; }
